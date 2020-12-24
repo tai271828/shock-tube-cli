@@ -6,6 +6,9 @@ authors = ["Taihsiang Ho (tai271828) <tai271828@gmail.com>"]
 
 [tool.poetry.dependencies]
 python = "3.8.3"
+shocktubecalc = "^0.14"
+matplotlib = "^3.3.3"
+scipy = "^1.5.4"
 
 [tool.poetry.dev-dependencies]
 
