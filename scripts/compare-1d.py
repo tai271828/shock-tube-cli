@@ -21,23 +21,38 @@ time_moment = 0.2
 mesh_points_number = 500
 
 
-def plot_solution(values, figure_numbers):
-    plt.figure(figure_numbers[0])
-    plt.plot(values['x'], values['p'], linewidth=1.5, color='b')
-    plt.ylabel('pressure')
+def plot_solution(values_base, values_target):
+    fig = plt.figure()
+    fig.subplots_adjust(hspace=0.4, wspace=0.4)
+
+    # plot base
+    plt.subplot(231, title="Pressure (base)")
+    plt.plot(values_base['x'], values_base['p'], linewidth=1.5, color='b')
+    plt.axis([0, 1, 0, 1.1])
+
+    plt.subplot(232, title="Density (base)")
+    plt.plot(values_base['x'], values_base['rho'], linewidth=1.5, color='r')
+    plt.axis([0, 1, 0, 1.1])
+
+    plt.subplot(233, title="Velocity (base)")
+    plt.plot(values_base['x'], values_base['u'], linewidth=1.5, color='g')
+    plt.axis([0, 1, 0, 1])
+
+    # plot target
+    plt.subplot(234, title="Pressure (target)")
+    plt.plot(values_target['x'], values_target['p'], linewidth=1.5, color='b')
     plt.xlabel('x')
     plt.axis([0, 1, 0, 1.1])
 
-    plt.figure(figure_numbers[1])
-    plt.plot(values['x'], values['rho'], linewidth=1.5, color='r')
-    plt.ylabel('density')
+    plt.subplot(235, title="Density (target)")
+    plt.plot(values_target['x'], values_target['rho'], linewidth=1.5, color='r')
     plt.xlabel('x')
     plt.axis([0, 1, 0, 1.1])
 
-    plt.figure(figure_numbers[2])
-    plt.plot(values['x'], values['u'], linewidth=1.5, color='g')
-    plt.ylabel('velocity')
+    plt.subplot(236, title="Velocity (target)")
+    plt.plot(values_target['x'], values_target['u'], linewidth=1.5, color='g')
     plt.xlabel('x')
+    plt.axis([0, 1, 0, 1])
 
     plt.show()
 
@@ -87,7 +102,5 @@ for desc, vals in shocktubecalc_sodtube[1].items():
 
 
 shocktube1d_sodtube_values = shocktube1d_sodtube[2]
-plot_solution(shocktube1d_sodtube_values, [1, 2, 3])
-
 shocktubecalc_sodtube_values = shocktubecalc_sodtube[2]
-plot_solution(shocktubecalc_sodtube_values, [4, 5, 6])
+plot_solution(shocktube1d_sodtube_values, shocktubecalc_sodtube_values)
