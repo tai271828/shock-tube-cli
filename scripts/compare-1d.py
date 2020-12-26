@@ -1,121 +1,151 @@
 #!/usr/bin/env python
+import collections
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 from sodtube1d import solver_analytic
 from shocktubecalc import sod
 
 
-tube_radius = 0.5
-tube_length = 1.0
-tube_left_x = 0.0
-tube_right_x = tube_left_x + tube_length
-tube_x_coordinate_shift = 0.5
+TUBE_RADIUS = 0.5
+TUBE_LENGTH = 1.0
+TUBE_LEFT_X = 0.0
+TUBE_RIGHT_X = TUBE_LEFT_X + TUBE_LENGTH
+TUBE_X_COORDINATE_SHIFT = 0.5
 
-state_left_rho = 1.0
-state_left_u = 0.0
-state_left_p = 1.0
-state_right_rho = 0.125
-state_right_u = 0.0
-state_right_p = 0.1
+STATE_LEFT_RHO = 1.0
+STATE_LEFT_U = 0.0
+STATE_LEFT_P = 1.0
+STATE_RIGHT_RHO = 0.125
+STATE_RIGHT_U = 0.0
+STATE_RIGHT_P = 0.1
 
-time_moment = 0.2
-mesh_points_number = 50
-
-
-def plot_solution(values_base, values_target, time_moment=None):
-    fig = plt.figure()
-    fig.subplots_adjust(hspace=0.4, wspace=0.4)
-    if time_moment:
-        fig.suptitle(f"Time (sec): {time_moment}")
-
-    # plot target
-    plt.subplot(231, title="Pressure (target)")
-    plt.scatter(values_target["x"], values_target["p"], s=10, c="b", marker="s")
-    plt.axis([0, 1, 0, 1.1])
-
-    plt.subplot(232, title="Density (target)")
-    plt.scatter(values_target["x"], values_target["rho"], s=10, c="b", marker="s")
-    plt.axis([0, 1, 0, 1.1])
-
-    plt.subplot(233, title="Velocity (target)")
-    plt.scatter(values_target["x"], values_target["u"], s=10, c="b", marker="s")
-    plt.axis([0, 1, 0, 1.1])
-
-    # plot base
-    plt.subplot(234, title="Pressure (base)")
-    plt.scatter(values_base["x"], values_base["p"], s=10, c="g", marker="8")
-    plt.xlabel("x")
-    plt.axis([0, 1, 0, 1.1])
-
-    plt.subplot(235, title="Density (base)")
-    plt.scatter(values_base["x"], values_base["rho"], s=10, c="g", marker="8")
-    plt.xlabel("x")
-    plt.axis([0, 1, 0, 1.1])
-
-    plt.subplot(236, title="Velocity (base)")
-    plt.scatter(values_base["x"], values_base["u"], s=10, c="g", marker="8")
-    plt.xlabel("x")
-    plt.axis([0, 1, 0, 1.1])
-
-    plt.show()
+TIME_STEP_SIZE = 0.01
+TIME_TOTAL_ELAPSE = 2.0
+MESH_POINTS_NUMBER = 50
 
 
-# generate the result from shocktube1d package
-mesh_x_array = np.linspace(
-    tube_left_x - tube_x_coordinate_shift,
-    tube_right_x - tube_x_coordinate_shift,
-    mesh_points_number,
+def plot_solution_single_frame(values_base, values_target, ax_base, ax_target, moment):
+    artist = []
+
+    title_items = [
+        ("p", "Pressure (base)"),
+        ("rho", "Density (target)"),
+        ("u", "Velocity (target)"),
+    ]
+    titles_ordered = collections.OrderedDict(title_items)
+
+    key_idx = 0
+    for key in titles_ordered:
+        ax = ax_target[key_idx]
+        subplot = ax.scatter(
+            values_target["x"], values_target[key], s=10, c="b", marker="s"
+        )
+        ax.set(xlim=[0, 1], ylim=[0, 1.1])
+        text = plt.text(0.1, 0.08, f"Time: {moment:.2f}", transform=ax.transAxes)
+
+        artist.append(subplot)
+        artist.append(text)
+        key_idx = key_idx + 1
+
+    key_idx = 0
+    for key in titles_ordered:
+        ax = ax_base[key_idx]
+        subplot = ax_base[key_idx].scatter(
+            values_base["x"], values_base[key], s=10, c="g", marker="8"
+        )
+        ax.set(xlim=[0, 1], ylim=[0, 1.1])
+        text = plt.text(0.1, 0.08, f"Time: {moment:.2f}", transform=ax.transAxes)
+
+        artist.append(subplot)
+        artist.append(text)
+        key_idx = key_idx + 1
+
+    return artist
+
+
+def plot_solution_video_frames(time_step, time_total_elapse, ax_base, ax_target):
+    artist_frames = []
+    time_total_steps = int(time_total_elapse / time_step)
+    for idx_step in range(0, time_total_steps):
+        moment = TIME_STEP_SIZE * idx_step
+        # generate the result from shocktube1d package
+        mesh_x_array = np.linspace(
+            TUBE_LEFT_X - TUBE_X_COORDINATE_SHIFT,
+            TUBE_RIGHT_X - TUBE_X_COORDINATE_SHIFT,
+            MESH_POINTS_NUMBER,
+        )
+        analytic_solver = solver_analytic.Solver()
+        analytic_solution = analytic_solver.get_analytic_solution(
+            mesh_x_array, t=moment
+        )
+        # convert to shocktubecalc compatible format
+        ao_rho_list = []
+        ao_u_list = []
+        ao_p_list = []
+
+        for solution_point in analytic_solution:
+            ao_rho_list.append(solution_point[1])
+            ao_u_list.append(solution_point[2])
+            ao_p_list.append(solution_point[3])
+
+        mesh_x_array_on_shocktubecalc = np.linspace(
+            TUBE_LEFT_X,
+            TUBE_RIGHT_X,
+            MESH_POINTS_NUMBER,
+        )
+        shocktube1d_sodtube = [
+            {"Positions": "NA"},
+            {"States": "NA"},
+            {
+                "x": mesh_x_array_on_shocktubecalc,
+                "rho": ao_rho_list,
+                "u": ao_u_list,
+                "p": ao_p_list,
+            },
+        ]
+
+        # generate the result from shocktubecalc package
+        shocktubecalc_sodtube = sod.solve(
+            left_state=(STATE_LEFT_P, STATE_LEFT_RHO, STATE_LEFT_U),
+            right_state=(STATE_RIGHT_P, STATE_RIGHT_RHO, STATE_RIGHT_U),
+            geometry=(TUBE_LEFT_X, TUBE_RIGHT_X, TUBE_RADIUS),
+            t=moment,
+            gamma=1.4,
+            npts=MESH_POINTS_NUMBER,
+        )
+
+        shocktube1d_sodtube_values = shocktube1d_sodtube[2]
+        shocktubecalc_sodtube_values = shocktubecalc_sodtube[2]
+
+        artist_frames.append(
+            plot_solution_single_frame(
+                shocktube1d_sodtube_values,
+                shocktubecalc_sodtube_values,
+                ax_base,
+                ax_target,
+                moment,
+            )
+        )
+
+    return artist_frames
+
+
+# Output video
+#
+# Set up formatting for the movie files
+Writer = animation.writers["ffmpeg"]
+writer = Writer(fps=15, metadata=dict(artist="Me"), bitrate=1800)
+my_dpi = 96
+fig4video, (axis_target, axis_base) = plt.subplots(
+    2, 3, figsize=(1600 / my_dpi, 1000 / my_dpi), dpi=my_dpi
 )
-analytic_solver = solver_analytic.Solver()
-analytic_solution = analytic_solver.get_analytic_solution(mesh_x_array, t=time_moment)
-# convert to shocktubecalc compatible format
-ao_rho_list = []
-ao_u_list = []
-ao_p_list = []
-
-for solution_point in analytic_solution:
-    ao_rho_list.append(solution_point[1])
-    ao_u_list.append(solution_point[2])
-    ao_p_list.append(solution_point[3])
-
-mesh_x_array_on_shocktubecalc = np.linspace(
-    tube_left_x,
-    tube_right_x,
-    mesh_points_number,
-)
-shocktube1d_sodtube = [
-    {"Positions": "NA"},
-    {"States": "NA"},
-    {
-        "x": mesh_x_array_on_shocktubecalc,
-        "rho": ao_rho_list,
-        "u": ao_u_list,
-        "p": ao_p_list,
-    },
-]
-
-
-# generate the result from shocktubecalc package
-shocktubecalc_sodtube = sod.solve(
-    left_state=(state_left_p, state_left_rho, state_left_u),
-    right_state=(state_right_p, state_right_rho, state_right_u),
-    geometry=(tube_left_x, tube_right_x, tube_radius),
-    t=time_moment,
-    gamma=1.4,
-    npts=mesh_points_number,
+fig4video.subplots_adjust(hspace=0.4, wspace=0.4)
+frame_seq = plot_solution_video_frames(
+    TIME_STEP_SIZE, TIME_TOTAL_ELAPSE, axis_base, axis_target
 )
 
-print("Positions:")
-for desc, vals in shocktubecalc_sodtube[0].items():
-    print("{0:10} : {1}".format(desc, vals))
-
-print("States:")
-for desc, vals in shocktubecalc_sodtube[1].items():
-    print("{0:10} : {1}".format(desc, vals))
-
-
-shocktube1d_sodtube_values = shocktube1d_sodtube[2]
-shocktubecalc_sodtube_values = shocktubecalc_sodtube[2]
-plot_solution(
-    shocktube1d_sodtube_values, shocktubecalc_sodtube_values, time_moment=time_moment
+ani = animation.ArtistAnimation(
+    fig4video, frame_seq, interval=25, repeat_delay=300, blit=True
 )
+ani.save("1d-sod-tube.mp4", writer=writer)
